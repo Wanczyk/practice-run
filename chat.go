@@ -25,12 +25,14 @@ func (c *Chat) run() {
 type Room struct {
 	clients map[*Client]bool
 	join    chan *Client
+	leave   chan *Client
 }
 
 func NewRoom() *Room {
 	return &Room{
 		clients: make(map[*Client]bool),
 		join:    make(chan *Client),
+		leave:   make(chan *Client),
 	}
 }
 
@@ -39,6 +41,8 @@ func (r *Room) run() {
 		select {
 		case client := <-r.join:
 			r.clients[client] = true
+		case client := <-r.leave:
+			r.clients[client] = false
 		}
 	}
 }

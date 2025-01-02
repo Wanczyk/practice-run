@@ -82,6 +82,17 @@ func serveWs(chat *Chat, w http.ResponseWriter, r *http.Request) {
 			} else {
 				log.Println("room not found")
 			}
+		case "leave":
+			if room, ok := chat.rooms[payload]; ok {
+				room.leave <- &Client{conn: conn}
+				resMessage := fmt.Sprintf("left room with name %s", payload)
+				if err := conn.WriteMessage(websocket.TextMessage, []byte(resMessage)); err != nil {
+					log.Println(err)
+					return
+				}
+			} else {
+				log.Println("room not found")
+			}
 		default:
 			log.Println("unknown command")
 		}
