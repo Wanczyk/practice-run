@@ -9,6 +9,7 @@ import (
 type Client struct {
 	chat *Chat
 	conn *websocket.Conn
+	send chan *SendMessage
 }
 
 func (c *Client) ReadJSON() {
@@ -20,7 +21,7 @@ func (c *Client) ReadJSON() {
 	}()
 
 	for {
-		message := &Message{}
+		message := &IncomeMessage{}
 		err := c.conn.ReadJSON(message)
 		if err != nil {
 			return
@@ -58,12 +59,8 @@ func (c *Client) ReadJSON() {
 			}
 		case "send":
 			if room, ok := c.chat.rooms[message.Room]; ok {
-				room.leave <- c
-				resMessage := fmt.Sprintf("left room with name %s", message.Room)
-				if err := c.conn.WriteMessage(websocket.TextMessage, []byte(resMessage)); err != nil {
-					log.Println(err)
-					return
-				}
+				mess := &SendMessage{Room: message.Room, Message: message.Message}
+				room.broadcast <- mess
 			} else {
 				log.Println("room not found")
 			}
@@ -72,4 +69,16 @@ func (c *Client) ReadJSON() {
 		}
 	}
 
+}
+
+func (c *Client) WriteJSON() {
+	for {
+		select {
+		case message := <-c.send:
+			err := c.conn.WriteJSON(message)
+			if err != nil {
+				return
+			}
+		}
+	}
 }

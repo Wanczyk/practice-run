@@ -11,8 +11,13 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
-type Message struct {
+type IncomeMessage struct {
 	Command string `json:"command"`
+	Room    string `json:"room"`
+	Message string `json:"message"`
+}
+
+type SendMessage struct {
 	Room    string `json:"room"`
 	Message string `json:"message"`
 }
@@ -36,8 +41,8 @@ func serveWs(chat *Chat, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := &Client{chat: chat, conn: conn}
+	client := &Client{chat: chat, conn: conn, send: make(chan *SendMessage)}
 
 	go client.ReadJSON()
-
+	go client.WriteJSON()
 }
