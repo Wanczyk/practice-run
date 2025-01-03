@@ -1,5 +1,7 @@
 package main
 
+import "fmt"
+
 type Chat struct {
 	rooms      map[string]*Room
 	createRoom chan string
@@ -41,8 +43,10 @@ func (r *Room) run() {
 		select {
 		case client := <-r.join:
 			r.clients[client] = true
+			fmt.Println(r.clients)
 		case client := <-r.leave:
 			r.clients[client] = false
+			fmt.Println(r.clients)
 		}
 	}
 }

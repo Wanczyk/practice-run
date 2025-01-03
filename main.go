@@ -1,11 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
-	"strings"
 )
 
 var upgrader = websocket.Upgrader{
@@ -13,7 +11,11 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
-var chat = &Chat{}
+type Message struct {
+	Command string `json:"command"`
+	Room    string `json:"room"`
+	Message string `json:"message"`
+}
 
 func main() {
 	chat := NewChat()
@@ -34,68 +36,8 @@ func serveWs(chat *Chat, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for {
-		messageType, raw, err := conn.ReadMessage()
-		if err != nil {
-			log.Println(err)
-			return
-		}
+	client := &Client{chat: chat, conn: conn}
 
-		if messageType != websocket.TextMessage {
-			log.Println("invalid message type")
-			continue
-		}
-		command := strings.SplitN(string(raw), " ", 2)
-		if len(command) < 2 {
-			log.Println("invalid command format")
-			continue
-		}
-
-		action, payload := command[0], command[1]
-
-		switch action {
-		case "create":
-			chat.createRoom <- payload
-			resMessage := fmt.Sprintf("created room with name %s", payload)
-			if err := conn.WriteMessage(websocket.TextMessage, []byte(resMessage)); err != nil {
-				log.Println(err)
-				return
-			}
-			if room, ok := chat.rooms[payload]; ok {
-				room.join <- &Client{conn: conn}
-				resMessage := fmt.Sprintf("joined room with name %s", payload)
-				if err := conn.WriteMessage(websocket.TextMessage, []byte(resMessage)); err != nil {
-					log.Println(err)
-					return
-				}
-			} else {
-				log.Println("room not found")
-			}
-		case "join":
-			if room, ok := chat.rooms[payload]; ok {
-				room.join <- &Client{conn: conn}
-				resMessage := fmt.Sprintf("joined room with name %s", payload)
-				if err := conn.WriteMessage(websocket.TextMessage, []byte(resMessage)); err != nil {
-					log.Println(err)
-					return
-				}
-			} else {
-				log.Println("room not found")
-			}
-		case "leave":
-			if room, ok := chat.rooms[payload]; ok {
-				room.leave <- &Client{conn: conn}
-				resMessage := fmt.Sprintf("left room with name %s", payload)
-				if err := conn.WriteMessage(websocket.TextMessage, []byte(resMessage)); err != nil {
-					log.Println(err)
-					return
-				}
-			} else {
-				log.Println("room not found")
-			}
-		default:
-			log.Println("unknown command")
-		}
-	}
+	go client.ReadJSON()
 
 }
