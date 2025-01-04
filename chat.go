@@ -47,8 +47,10 @@ func (r *Room) run() {
 			r.clients[client] = true
 			fmt.Println(r.clients)
 		case client := <-r.leave:
-			r.clients[client] = false
-			fmt.Println(r.clients)
+			if _, active := r.clients[client]; active {
+				delete(r.clients, client)
+				fmt.Println(r.clients)
+			}
 		case message := <-r.broadcast:
 			for client, active := range r.clients {
 				if !active {
@@ -57,7 +59,6 @@ func (r *Room) run() {
 				select {
 				case client.send <- message:
 				default:
-					close(client.send)
 					delete(r.clients, client)
 				}
 			}

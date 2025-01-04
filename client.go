@@ -72,6 +72,13 @@ func (c *Client) ReadJSON() {
 }
 
 func (c *Client) WriteJSON() {
+	defer func() {
+		err := c.conn.Close()
+		if err != nil {
+			return
+		}
+	}()
+
 	for {
 		select {
 		case message := <-c.send:
