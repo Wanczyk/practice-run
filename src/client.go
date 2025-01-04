@@ -74,7 +74,7 @@ func (c *Client) handleJoinCommand(message *IncomeMessage) error {
 }
 
 func (c *Client) handleLeaveCommand(message *IncomeMessage) error {
-	if room, ok := c.Chat.Rooms[message.Data.Room]; ok {
+	if room, ok := c.Chat.Rooms[message.Data.Room]; ok && room.Clients[c] {
 		room.Leave <- c
 		return c.handleSuccessCommand(message.Data.Room, LeaveCommand, fmt.Sprintf("left room with name %s", message.Data.Room))
 	}
@@ -82,7 +82,7 @@ func (c *Client) handleLeaveCommand(message *IncomeMessage) error {
 }
 
 func (c *Client) handleSendCommand(message *IncomeMessage) error {
-	if room, ok := c.Chat.Rooms[message.Data.Room]; ok {
+	if room, ok := c.Chat.Rooms[message.Data.Room]; ok && room.Clients[c] {
 		mess := &SendMessage{Status: StatusSuccess, Command: SendCommand, Data: &Data{Room: message.Data.Room, Message: message.Data.Message}}
 		room.Broadcast <- mess
 		return nil
