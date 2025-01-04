@@ -38,13 +38,9 @@ func (c *Client) ReadJSON() {
 		case "join":
 			if room, ok := c.chat.rooms[message.Room]; ok {
 				room.join <- c
-				resMessage := fmt.Sprintf("joined room with name %s", message.Room)
-				if err := c.conn.WriteMessage(websocket.TextMessage, []byte(resMessage)); err != nil {
-					log.Println(err)
-					return
-				}
+				c.handleRoomNotFound(message.Room)
 			} else {
-				log.Println("room not found")
+				c.handleRoomNotFound(message.Room)
 			}
 		case "leave":
 			if room, ok := c.chat.rooms[message.Room]; ok {
@@ -55,14 +51,14 @@ func (c *Client) ReadJSON() {
 					return
 				}
 			} else {
-				log.Println("room not found")
+				c.handleRoomNotFound(message.Room)
 			}
 		case "send":
 			if room, ok := c.chat.rooms[message.Room]; ok {
 				mess := &SendMessage{Room: message.Room, Message: message.Message}
 				room.broadcast <- mess
 			} else {
-				log.Println("room not found")
+				c.handleRoomNotFound(message.Room)
 			}
 		default:
 			log.Println("unknown command")
@@ -87,5 +83,12 @@ func (c *Client) WriteJSON() {
 				return
 			}
 		}
+	}
+}
+
+func (c *Client) handleRoomNotFound(room string) {
+	resMessage := fmt.Sprintf("room: %s not found", room)
+	if err := c.conn.WriteMessage(websocket.TextMessage, []byte(resMessage)); err != nil {
+		log.Println(err)
 	}
 }
