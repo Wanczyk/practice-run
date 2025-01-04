@@ -14,10 +14,7 @@ type Client struct {
 
 func (c *Client) ReadJSON() {
 	defer func() {
-		err := c.Conn.Close()
-		if err != nil {
-			return
-		}
+		c.Conn.Close()
 	}()
 
 	for {
@@ -73,12 +70,8 @@ func (c *Client) ReadJSON() {
 
 func (c *Client) WriteJSON() {
 	defer func() {
-		err := c.Conn.Close()
-		if err != nil {
-			return
-		}
+		c.Conn.Close()
 	}()
-
 	for {
 		select {
 		case message := <-c.Send:

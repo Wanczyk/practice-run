@@ -1,9 +1,5 @@
 package src
 
-import (
-	"fmt"
-)
-
 type Chat struct {
 	Rooms      map[string]*Room
 	CreateRoom chan string
@@ -20,8 +16,10 @@ func (c *Chat) Run() {
 	for {
 		select {
 		case room := <-c.CreateRoom:
-			c.Rooms[room] = NewRoom()
-			go c.Rooms[room].Run()
+			if _, exists := c.Rooms[room]; !exists {
+				c.Rooms[room] = NewRoom()
+				go c.Rooms[room].Run()
+			}
 		}
 	}
 }
@@ -47,21 +45,17 @@ func (r *Room) Run() {
 		select {
 		case client := <-r.Join:
 			r.Clients[client] = true
-			fmt.Println(r.Clients)
 		case client := <-r.Leave:
 			if _, active := r.Clients[client]; active {
 				delete(r.Clients, client)
-				fmt.Println(r.Clients)
 			}
 		case message := <-r.Broadcast:
-			for client, active := range r.Clients {
-				if !active {
-					continue
-				}
+			for client := range r.Clients {
 				select {
 				case client.Send <- message:
 				default:
 					delete(r.Clients, client)
+					close(client.Send)
 				}
 			}
 		}
