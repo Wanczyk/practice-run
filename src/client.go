@@ -13,14 +13,11 @@ type Client struct {
 }
 
 func (c *Client) ReadJSON() {
-	defer func() {
-		c.Conn.Close()
-	}()
+	defer c.Conn.Close()
 
 	for {
 		message := &IncomeMessage{}
-		err := c.Conn.ReadJSON(message)
-		if err != nil {
+		if err := c.Conn.ReadJSON(message); err != nil {
 			return
 		}
 
@@ -31,42 +28,10 @@ func (c *Client) ReadJSON() {
 			continue
 		}
 
-		switch message.Command {
-		case "create":
-			c.Chat.CreateRoom <- message.Data.Room
-			err = c.handleSuccessCommand(message.Data.Room, CreateCommand, fmt.Sprintf("created room with name %s", message.Data.Room))
-		case "join":
-			room, ok := c.Chat.Rooms[message.Data.Room]
-			if ok {
-				room.Join <- c
-				err = c.handleSuccessCommand(message.Data.Room, JoinCommand, fmt.Sprintf("joined room with name %s", message.Data.Room))
-			} else {
-				err = c.handleRoomNotFound(message.Data.Room, JoinCommand)
-			}
-		case "leave":
-			room, ok := c.Chat.Rooms[message.Data.Room]
-			if ok {
-				room.Leave <- c
-				err = c.handleSuccessCommand(message.Data.Room, LeaveCommand, fmt.Sprintf("left room with name %s", message.Data.Room))
-			} else {
-				err = c.handleRoomNotFound(message.Data.Room, LeaveCommand)
-			}
-		case "send":
-			room, ok := c.Chat.Rooms[message.Data.Room]
-			if ok {
-				mess := &SendMessage{Status: StatusSuccess, Command: SendCommand, Data: &Data{Room: message.Data.Room, Message: message.Data.Message}}
-				room.Broadcast <- mess
-			} else {
-				err = c.handleRoomNotFound(message.Data.Room, SendCommand)
-			}
-		default:
-			err = c.handleErrorCommand(UnknownCommand, fmt.Sprintf("Command: %s not found", message.Command), 400)
-		}
-		if err != nil {
+		if err := c.processCommand(message); err != nil {
 			return
 		}
 	}
-
 }
 
 func (c *Client) WriteJSON() {
@@ -82,6 +47,47 @@ func (c *Client) WriteJSON() {
 			}
 		}
 	}
+}
+
+func (c *Client) processCommand(message *IncomeMessage) error {
+	switch message.Command {
+	case "create":
+		c.Chat.CreateRoom <- message.Data.Room
+		return c.handleSuccessCommand(message.Data.Room, CreateCommand, fmt.Sprintf("created room with name %s", message.Data.Room))
+	case "join":
+		return c.handleJoinCommand(message)
+	case "leave":
+		return c.handleLeaveCommand(message)
+	case "send":
+		return c.handleSendCommand(message)
+	default:
+		return c.handleErrorCommand(UnknownCommand, fmt.Sprintf("Command: %s not found", message.Command), 400)
+	}
+}
+
+func (c *Client) handleJoinCommand(message *IncomeMessage) error {
+	if room, ok := c.Chat.Rooms[message.Data.Room]; ok {
+		room.Join <- c
+		return c.handleSuccessCommand(message.Data.Room, JoinCommand, fmt.Sprintf("joined room with name %s", message.Data.Room))
+	}
+	return c.handleRoomNotFound(message.Data.Room, JoinCommand)
+}
+
+func (c *Client) handleLeaveCommand(message *IncomeMessage) error {
+	if room, ok := c.Chat.Rooms[message.Data.Room]; ok {
+		room.Leave <- c
+		return c.handleSuccessCommand(message.Data.Room, LeaveCommand, fmt.Sprintf("left room with name %s", message.Data.Room))
+	}
+	return c.handleRoomNotFound(message.Data.Room, LeaveCommand)
+}
+
+func (c *Client) handleSendCommand(message *IncomeMessage) error {
+	if room, ok := c.Chat.Rooms[message.Data.Room]; ok {
+		mess := &SendMessage{Status: StatusSuccess, Command: SendCommand, Data: &Data{Room: message.Data.Room, Message: message.Data.Message}}
+		room.Broadcast <- mess
+		return nil
+	}
+	return c.handleRoomNotFound(message.Data.Room, SendCommand)
 }
 
 func (c *Client) handleRoomNotFound(room string, command Commands) error {
