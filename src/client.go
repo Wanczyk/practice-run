@@ -4,12 +4,31 @@ import (
 	"fmt"
 	"github.com/gorilla/websocket"
 	"log"
+	"net/http"
 )
+
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+}
 
 type Client struct {
 	Chat *Chat
 	Conn *websocket.Conn
 	Send chan *SendMessage
+}
+
+func ServeWs(chat *Chat, w http.ResponseWriter, r *http.Request) {
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	client := &Client{Chat: chat, Conn: conn, Send: make(chan *SendMessage)}
+
+	go client.ReadJSON()
+	go client.WriteJSON()
 }
 
 func (c *Client) ReadJSON() {
