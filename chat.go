@@ -50,7 +50,10 @@ func (r *Room) run() {
 			r.clients[client] = false
 			fmt.Println(r.clients)
 		case message := <-r.broadcast:
-			for client := range r.clients {
+			for client, active := range r.clients {
+				if !active {
+					continue
+				}
 				select {
 				case client.send <- message:
 				default:
