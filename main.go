@@ -4,6 +4,7 @@ import (
 	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
+	"practice-run/src"
 )
 
 var upgrader = websocket.Upgrader{
@@ -11,20 +12,9 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
-type IncomeMessage struct {
-	Command string `json:"command"`
-	Room    string `json:"room"`
-	Message string `json:"message"`
-}
-
-type SendMessage struct {
-	Room    string `json:"room"`
-	Message string `json:"message"`
-}
-
 func main() {
-	chat := NewChat()
-	go chat.run()
+	chat := src.NewChat()
+	go chat.Run()
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		serveWs(chat, w, r)
 	})
@@ -34,14 +24,14 @@ func main() {
 	}
 }
 
-func serveWs(chat *Chat, w http.ResponseWriter, r *http.Request) {
+func serveWs(chat *src.Chat, w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println(err)
 		return
 	}
 
-	client := &Client{chat: chat, conn: conn, send: make(chan *SendMessage)}
+	client := &src.Client{Chat: chat, Conn: conn, Send: make(chan *src.SendMessage)}
 
 	go client.ReadJSON()
 	go client.WriteJSON()
