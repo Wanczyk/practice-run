@@ -35,7 +35,7 @@ func (c *Client) ReadJSON() {
 	defer c.Conn.Close()
 
 	for {
-		message := &IncomeMessage{}
+		message := &IncomingMessage{}
 		if err := c.Conn.ReadJSON(message); err != nil {
 			return
 		}
@@ -60,6 +60,9 @@ func (c *Client) WriteJSON() {
 	for {
 		select {
 		case message := <-c.Send:
+			if message == nil {
+				continue
+			}
 			err := c.Conn.WriteJSON(message)
 			if err != nil {
 				return
@@ -68,7 +71,7 @@ func (c *Client) WriteJSON() {
 	}
 }
 
-func (c *Client) processCommand(message *IncomeMessage) error {
+func (c *Client) processCommand(message *IncomingMessage) error {
 	switch message.Command {
 	case "create":
 		c.Chat.CreateRoom <- message.Data.Room
@@ -84,7 +87,7 @@ func (c *Client) processCommand(message *IncomeMessage) error {
 	}
 }
 
-func (c *Client) handleJoinCommand(message *IncomeMessage) error {
+func (c *Client) handleJoinCommand(message *IncomingMessage) error {
 	if room, ok := c.Chat.Rooms[message.Data.Room]; ok {
 		room.Join <- c
 		return c.handleSuccessCommand(message.Data.Room, JoinCommand, fmt.Sprintf("joined room with name %s", message.Data.Room))
@@ -92,7 +95,7 @@ func (c *Client) handleJoinCommand(message *IncomeMessage) error {
 	return c.handleRoomNotFound(message.Data.Room, JoinCommand)
 }
 
-func (c *Client) handleLeaveCommand(message *IncomeMessage) error {
+func (c *Client) handleLeaveCommand(message *IncomingMessage) error {
 	if room, ok := c.Chat.Rooms[message.Data.Room]; ok && room.Clients[c] {
 		room.Leave <- c
 		return c.handleSuccessCommand(message.Data.Room, LeaveCommand, fmt.Sprintf("left room with name %s", message.Data.Room))
@@ -100,7 +103,7 @@ func (c *Client) handleLeaveCommand(message *IncomeMessage) error {
 	return c.handleRoomNotFound(message.Data.Room, LeaveCommand)
 }
 
-func (c *Client) handleSendCommand(message *IncomeMessage) error {
+func (c *Client) handleSendCommand(message *IncomingMessage) error {
 	if room, ok := c.Chat.Rooms[message.Data.Room]; ok && room.Clients[c] {
 		mess := &SendMessage{Status: StatusSuccess, Command: SendCommand, Data: &Data{Room: message.Data.Room, Message: message.Data.Message}}
 		room.Broadcast <- mess
@@ -116,7 +119,6 @@ func (c *Client) handleRoomNotFound(room string, command Commands) error {
 func (c *Client) handleSuccessCommand(room string, command Commands, message string) error {
 	resMessage := &SendMessage{Status: StatusSuccess, Command: command, Data: &Data{Room: room, Message: message}}
 	if err := c.Conn.WriteJSON(resMessage); err != nil {
-		log.Println(err)
 		return err
 	}
 	return nil

@@ -17,7 +17,7 @@ const (
 	UnknownCommand Commands = "unknown"
 )
 
-type IncomeMessage struct {
+type IncomingMessage struct {
 	Command Commands `json:"command"`
 	Data    *Data    `json:"data"`
 }

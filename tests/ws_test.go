@@ -33,7 +33,7 @@ func TestHandleWebSocket_HappyPath(t *testing.T) {
 	}
 	defer client.Close()
 
-	message := &src.IncomeMessage{
+	message := &src.IncomingMessage{
 		Command: "create",
 		Data: &src.Data{
 			Room: "test",
@@ -54,7 +54,7 @@ func TestHandleWebSocket_HappyPath(t *testing.T) {
 		t.Errorf("expected response '%+v', but got '%+v'", message, responseMessage)
 	}
 
-	message = &src.IncomeMessage{
+	message = &src.IncomingMessage{
 		Command: "join",
 		Data: &src.Data{
 			Room: "test",
@@ -75,7 +75,7 @@ func TestHandleWebSocket_HappyPath(t *testing.T) {
 		t.Errorf("expected response '%+v', but got '%+v'", message, responseMessage)
 	}
 
-	message = &src.IncomeMessage{
+	message = &src.IncomingMessage{
 		Command: "send",
 		Data: &src.Data{
 			Room:    "test",
