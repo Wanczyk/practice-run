@@ -1,8 +1,11 @@
 package src
 
+import "sync"
+
 type Chat struct {
 	Rooms      map[string]*Room
 	CreateRoom chan string
+	mu         sync.RWMutex
 }
 
 func NewChat() *Chat {
@@ -16,10 +19,12 @@ func (c *Chat) Run() {
 	for {
 		select {
 		case room := <-c.CreateRoom:
+			c.mu.Lock()
 			if _, exists := c.Rooms[room]; !exists {
 				c.Rooms[room] = NewRoom()
 				go c.Rooms[room].Run()
 			}
+			c.mu.Unlock()
 		}
 	}
 }
