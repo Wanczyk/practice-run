@@ -67,7 +67,6 @@ func (r *Room) Run() {
 				default:
 					log.Println("Cannot send message, deleting client: ", client)
 					delete(r.Clients, client)
-					close(client.Send)
 				}
 			}
 		}
