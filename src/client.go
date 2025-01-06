@@ -32,7 +32,10 @@ func ServeWs(chat *Chat, w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *Client) ReadJSON() {
-	defer c.Conn.Close()
+	defer func() {
+		log.Println("Cannot read from client, closing connection.")
+		c.Conn.Close()
+	}()
 
 	for {
 		message := &IncomingMessage{}
@@ -55,16 +58,19 @@ func (c *Client) ReadJSON() {
 
 func (c *Client) WriteJSON() {
 	defer func() {
+		log.Println("Cannot write JSON to client, closing connection.")
 		c.Conn.Close()
 	}()
 	for {
 		select {
 		case message := <-c.Send:
 			if message == nil {
+				log.Println("Empty message")
 				continue
 			}
 			err := c.Conn.WriteJSON(message)
 			if err != nil {
+				log.Println("Error writing JSON:", err)
 				return
 			}
 		}
@@ -72,6 +78,7 @@ func (c *Client) WriteJSON() {
 }
 
 func (c *Client) processCommand(message *IncomingMessage) error {
+	log.Printf("Incoming message: %+v\n", message)
 	switch message.Command {
 	case "create":
 		c.Chat.CreateRoom <- message.Data.Room
@@ -119,6 +126,7 @@ func (c *Client) handleRoomNotFound(room string, command Commands) error {
 func (c *Client) handleSuccessCommand(room string, command Commands, message string) error {
 	resMessage := &SendMessage{Status: StatusSuccess, Command: command, Data: &Data{Room: room, Message: message}}
 	if err := c.Conn.WriteJSON(resMessage); err != nil {
+		log.Println("Error writing JSON:", err)
 		return err
 	}
 	return nil
@@ -127,7 +135,7 @@ func (c *Client) handleSuccessCommand(room string, command Commands, message str
 func (c *Client) handleErrorCommand(command Commands, message string, code int) error {
 	resMessage := &SendMessage{Status: StatusError, Command: command, Error: &Error{Code: code, Message: message}}
 	if err := c.Conn.WriteJSON(resMessage); err != nil {
-		log.Println(err)
+		log.Println("Error writing JSON:", err)
 		return err
 	}
 	return nil
